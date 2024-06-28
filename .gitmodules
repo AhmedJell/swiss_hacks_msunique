@@ -1,0 +1,3 @@
+[submodule "msunique"]
+	path = msunique
+	url = git@github.com:swisshacks/msunique.git
