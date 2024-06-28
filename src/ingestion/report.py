@@ -11,10 +11,11 @@ from langchain_text_splitters import MarkdownHeaderTextSplitter
 
 load_dotenv()
 
+
 @dataclass
 class Report:
-    company_name: str 
-    year: str 
+    company_name: str
+    year: str
     texts: list[Document]
     embeddings: list[list[float]]
     metadatas: list[dict]
@@ -32,12 +33,12 @@ class Report:
 
         print("Embedding texts for ", company_name, " ", year, " ...")
         embedding_model = AzureOpenAIEmbeddings(
-            model=os.getenv('EMBEDDING-MODEL'),
-            api_key=os.getenv('API-KEY'),
-            api_version=os.getenv('API-VERSION'),
-            azure_endpoint=os.getenv('AZURE-ENDPOINT')
+            model=os.getenv("EMBEDDING-MODEL"),
+            api_key=os.getenv("API-KEY"),
+            api_version=os.getenv("API-VERSION"),
+            azure_endpoint=os.getenv("AZURE-ENDPOINT"),
         )
-        
+
         embeddings = embedding_model.embed_documents(texts)
 
         vectorstore = FAISS.from_embeddings(
@@ -73,7 +74,7 @@ class Report:
     def _load_json(cls, file_path):
         with open(file_path) as file:
             return json.load(file)
-    
+
     @classmethod
     def _parse_content(cls, json_data) -> list[Document]:
         content = json_data["analyzeResult"]["content"]

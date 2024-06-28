@@ -5,7 +5,7 @@ your KPI extraction system is ready to use.
 """
 
 
-KPI_TRIGGER_PROMPT = """
+KPI_EXTRACTOR_TRIGGER_PROMPT = """
 This the query
 
 {query}
