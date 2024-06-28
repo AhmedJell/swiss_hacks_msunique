@@ -3,7 +3,8 @@ import json
 import chainlit as cl
 from dotenv import load_dotenv
 import os
-from src.ingestion.report import Report
+from ingestion.report import Report
+from llm_agents.kpi_extraction.agent import KPIExtractionAgent
 from pathlib import Path
 
 # Load the environment variables
@@ -33,15 +34,7 @@ settings = {
 @cl.on_message
 async def on_message(message: cl.Message):
     report = Report.from_json(Path("../msunique/Data/ABB/2023.json"))
-    report.vectorstore.query(message.content)
-    response = azure_client.chat.completions.create(
-        messages=[
-            {
-                "role": "system",
-                "content": "You are a helpful assistant supporting data analysts.",
-            },
-            {"role": "user", "content": message.content},
-        ],
-        **settings,
-    )
-    await cl.Message(content=response.choices[0].message.content).send()
+    documents = report.vectorstore.similarity_search(message.content, 5)
+    agent = KPIExtractionAgent()
+    
+    await cl.Message(content=agent.complete(query=message.content, chunks=documents)).send()

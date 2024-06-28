@@ -1,6 +1,6 @@
 from langchain.docstore.document import Document
 
-from src.llm_agents.base import AgentTemplate
+from llm_agents.base import AgentTemplate
 
 from .prompts import KPI_EXTRACTOR_SYSTEM_PROMPT, KPI_EXTRACTOR_TRIGGER_PROMPT
 

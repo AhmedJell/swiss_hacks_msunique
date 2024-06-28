@@ -38,5 +38,8 @@ class AgentTemplate(ABC):
 
     def complete(self, *args, **kwargs):
         prompt = self._get_prompt(*args, **kwargs)
-        resp = azure_client.chat.completions.create(messages=prompt)
+        resp = azure_client.chat.completions.create(
+            messages=prompt,
+            model=os.getenv("COMPLETION-MODEL")
+        )
         return resp.choices[0].message.content
