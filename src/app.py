@@ -10,13 +10,13 @@ from pathlib import Path
 load_dotenv()
 
 # Define the model name to be used
-model_name = os.environ.get('COMPLETION-MODEL')
+model_name = os.environ.get("COMPLETION-MODEL")
 
 # Initialize the Azure OpenAI client
 azure_client = AzureOpenAI(
-    api_key=os.environ.get('API-KEY'),
-    api_version=os.environ.get('API-VERSION'),
-    azure_endpoint=os.environ.get('AZURE-ENDPOINT')
+    api_key=os.environ.get("API-KEY"),
+    api_version=os.environ.get("API-VERSION"),
+    azure_endpoint=os.environ.get("AZURE-ENDPOINT"),
 )
 
 
@@ -29,15 +29,19 @@ settings = {
     # ... more settings
 }
 
+
 @cl.on_message
 async def on_message(message: cl.Message):
     report = Report.from_json(Path("../msunique/Data/ABB/2023.json"))
     report.vectorstore.query(message.content)
     response = azure_client.chat.completions.create(
         messages=[
-            {"role": "system", "content": "You are a helpful assistant supporting data analysts."},
-            {"role": "user", "content": message.content}
+            {
+                "role": "system",
+                "content": "You are a helpful assistant supporting data analysts.",
+            },
+            {"role": "user", "content": message.content},
         ],
-        **settings
+        **settings,
     )
     await cl.Message(content=response.choices[0].message.content).send()

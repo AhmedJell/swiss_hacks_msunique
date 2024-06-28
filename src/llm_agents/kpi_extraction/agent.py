@@ -14,7 +14,7 @@ class KPIExtractionAgent(AgentTemplate):
 
     @property
     def trigger(self):
-        """Trigger Prompt needs to contain {query} and {chunks} placeholders."""
+        """Trigger Prompt needs to contain {query} and {context} placeholders."""
         return KPI_EXTRACTOR_TRIGGER_PROMPT
 
     def format_chunks(self, chunks: list[Document]):
@@ -24,5 +24,8 @@ class KPIExtractionAgent(AgentTemplate):
         formatted_chunks = self.format_chunks(chunks)
         return [
             {"role": "system", "content": self.system},
-            {"role": "user", "content": self.trigger.format(query, formatted_chunks)},
+            {
+                "role": "user",
+                "content": self.trigger.format(query=query, context=formatted_chunks),
+            },
         ]

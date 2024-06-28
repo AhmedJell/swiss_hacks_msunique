@@ -13,6 +13,6 @@ This the query
 
 this the chunks
 
-{chunks}
+{context}
 
 """
