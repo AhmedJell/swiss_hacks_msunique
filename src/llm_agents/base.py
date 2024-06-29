@@ -36,6 +36,17 @@ class AgentTemplate(ABC):
     def _get_prompt(self, *args, **kwargs) -> list[dict]:
         raise NotImplementedError
 
+    def parse_json(self, json_output: str) -> dict:
+        parsed_json = {}
+        try:
+            start_index = json_output.index("{")
+            end_index = json_output.rindex("}") + 1
+            parsed_json = eval(json_output[start_index:end_index])
+        except Exception:
+            print("Error: Json Parsing Error!")
+        
+        return parsed_json
+
     def complete(self, *args, **kwargs):
         prompt = self._get_prompt(*args, **kwargs)
         resp = azure_client.chat.completions.create(
