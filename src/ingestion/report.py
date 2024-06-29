@@ -203,6 +203,8 @@ class Report:
 
         df_kpis.to_json(save_path, orient="records")
 
+        self.kpis = df_kpis
+        
         return df_kpis
 
 
