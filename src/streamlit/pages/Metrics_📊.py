@@ -2,8 +2,8 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.express as px
-from streamlit.components.v1 import html
 from src.streamlit.pages.helpers.helpers import menu
+from src.ingestion.report import Report
 
 st.set_page_config(
     page_title="Metrics",
@@ -14,19 +14,10 @@ st.set_page_config(
 
 menu()
 
-with st.sidebar:
-    company_name = st.multiselect(
-        options=["Company A", "Company B", "Company C"], label="Select Company"
-    )
-    years = st.multiselect(options=[2023, 2022, 2021], label="Select Year(s)")
+def run_report(report: Report, container):
+    container.title(f"Metrics Dashboard of **{report.company_name}** in {report.year}")
 
-    kpis = st.multiselect(label="Select KPI(s)", options=["Revenue", "Profit", "Employees"])
-    
-if "Revenue" in kpis:
-    company = "ABB"
-    st.title(f"Metrics Dashboard of **{company}**")
-
-    col1, col2 = st.columns(2)
+    col1, col2 = container.columns(2)
 
     col1.header("Quick Company Overview")
     col1.markdown(
@@ -42,9 +33,11 @@ if "Revenue" in kpis:
         """
     )
 
-    st.header("Key metrics")
-    col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
-    col_mt1, col_mt2, col_mt3, col_mt4, col_mt5 = st.columns(5)
+    container.dataframe(report.kpis)
+
+    container.header("Key metrics")
+    col_m1, col_m2, col_m3, col_m4, col_m5 = container.columns(5)
+    col_mt1, col_mt2, col_mt3, col_mt4, col_mt5 = container.columns(5)
 
     col_m1.metric("Total Revenue", "$32.2m", "9.5%")
     col_m2.metric("Gross Profits", "$11.m", "15.0%")
@@ -59,9 +52,9 @@ if "Revenue" in kpis:
         col_mt3.metric("EBITDA", "$5'603m", "43.5%")
         col_mt4.metric("EBIT", "$4,871m", "46.0%")
 
-    st.markdown("The company shows strong financial performance with a total revenue of $32.2m (up 9.5%) and a net income of $3.7m (up 51.3%). Total assets are $40.2m (up 5.7%) and total equity is $13.4m (up 3.6%).")
+    container.markdown("The company shows strong financial performance with a total revenue of \$32.2m (up 9.5%) and a net income of \$3.7m (up 51.3%). Total assets are \$40.2m (up 5.7%) and total equity is \$13.4m (up 3.6%).")
 
-    col_c1, col_c2 = st.columns(spec=[0.4, 0.6])
+    col_c1, col_c2 = container.columns(spec=[0.4, 0.6])
     col_c1.header("Stock ticker from past 12 months")
     ticker = yf.Ticker("ABBN.SW")
     hist = ticker.history(period="1y")
@@ -99,3 +92,26 @@ if "Revenue" in kpis:
     df = pd.DataFrame(revenue_by_region["revenues_by_geography"]).set_index("Region")
     fig = px.pie(df, values="revenues", names=df.index, title="Revenue by region").update_traces(textposition="inside", texttemplate="$%{value: 0.2s}m <br> %{percent}", hole=0.4)
     col_c2.plotly_chart(fig)
+
+if "processed" in st.session_state:
+    reports = st.session_state.processed
+    number_of_reports = len(reports)
+else:
+    number_of_reports = 0
+
+if number_of_reports == 0:
+    st.error("Please upload at least one report.")
+elif number_of_reports == 1:
+    run_report(reports[0], st)
+elif number_of_reports == 2:
+    tab_1, tab_2 = st.tabs([f"{report.company_name} {report.year}" for report in reports])
+    tab_1 = run_report(reports[0], tab_1)
+    tab_2 = run_report(reports[1], tab_2)
+elif number_of_reports == 3:
+    tab_1, tab_2, tab_3 = st.tabs([f"{report.company_name} {report.year}" for report in reports])
+elif number_of_reports == 4:
+    tab_1, tab_2, tab_3, tab_4 = st.tabs([f"{report.company_name} {report.year}" for report in reports])
+else:
+    st.error("You can only compare up to 4 reports at a time.")
+
+    
