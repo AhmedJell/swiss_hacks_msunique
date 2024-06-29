@@ -15,7 +15,7 @@ RAG_TRIGGER_PROMPT = """Answer the question from the user and provide the necess
 
 question:
 ```
-{question}
+{query}
 ```
 
 Sources:

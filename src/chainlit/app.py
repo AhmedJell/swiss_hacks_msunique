@@ -83,6 +83,7 @@ def load_report(path: Path) -> cl.Message:
 @cl.step(show_input=True, type="llm", disable_feedback=False)
 def get_report(message):
     report = load_report(Path("../../msunique/Data/ABB/2023.json"))
+    chat_profile = cl.user_session.get("chat_profile")
     documents = report.vectorstore.similarity_search(message.content, k=20)
     if chat_profile == "KPI Extractor":
         agent = KPIExtractionAgent()
@@ -95,6 +96,5 @@ def get_report(message):
 
 @cl.on_message
 async def on_message(message: cl.Message):
-    chat_profile = cl.user_session.get("chat_profile")
     message = await get_report(message)
     await message.send()

@@ -23,12 +23,12 @@ class RAGAgent(AgentTemplate):
             sources += f"<source{i+1}>{chunk.page_content}<source{i+1}>\n"
         return sources
 
-    def _get_prompt(self, question, sources: list[Document]):
+    def _get_prompt(self, query, sources: list[Document]):
         formatted_sources = self.format_sources(sources)
         return [
             {"role": "system", "content": self.system},
             {
                 "role": "user",
-                "content": self.trigger.format(question=question, sources=formatted_sources),
+                "content": self.trigger.format(query=query, sources=formatted_sources),
             },
         ]
