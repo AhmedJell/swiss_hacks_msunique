@@ -31,7 +31,7 @@ markdown_patterns = {
 
 compiled_patterns = {re.compile(f"^{k} (.+)"): v for k, v in markdown_patterns.items()}
 
-vectorstore_path = Path("data/vectorstores")
+vectorstore_path = Path(__file__).parent.parent.parent / "data" / "vectorstore"
 
 @dataclass
 class Report:
