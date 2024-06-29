@@ -166,6 +166,7 @@ cython_debug/
 config.json
 
 **/vectorstores/
-**/*.ipynb
+vectorstore/
+# **/*.ipynb
 .DS_Store
 

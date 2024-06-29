@@ -5,6 +5,7 @@ import os
 from src.ingestion.report import Report
 from src.llm_agents.kpi_extraction.agent import KPIExtractionAgent
 from src.llm_agents.kpi_formula_finder.agent import KPIFormulaFinderAgent
+from src.llm_agents.kpi_simple_extraction.agent import KPISimpleExtractionAgent
 from src.llm_agents.rag.agent import RAGAgent
 from pathlib import Path
 from chainlit.input_widget import Select, Switch, Slider
@@ -28,6 +29,11 @@ async def chat_profile():
             name="KPI Formula Finder",
             markdown_description="The underlying LLM model is **GPT-4o.",
             icon="https://picsum.photos/300",
+        ),
+        cl.ChatProfile(
+            name="KPI Simple Extraction",
+            markdown_description="The underlying LLM model is **GPT-4o.",
+            icon="https://picsum.photos/350",
         ),
     ]
 
@@ -100,6 +106,7 @@ settings = {
 @cl.cache
 def load_report(path: Path) -> cl.Message:
     report = Report.from_json(path)
+    report.get_kpis()
     return report
 
 @cl.step(show_input=True, type="llm", disable_feedback=False)
@@ -109,27 +116,17 @@ def get_report(message):
     chat_profile = cl.user_session.get("chat_profile")
     query = message.content
     if chat_profile == "KPI Extractor":
-        documents = report.vectorstore.similarity_search(message.content, k=20)
-        agent = KPIExtractionAgent()
-        kwargs = {
-            "sources": documents,
-            "query": query
-        }
+        agent = KPIExtractionAgent(report)
     elif chat_profile == "Simple Chatbot":
-        documents = report.vectorstore.similarity_search(message.content, k=20)
-        kwargs = {
-            "sources": documents,
-            "query": query
-        }
-        agent = RAGAgent()
+        agent = RAGAgent(report)
     elif chat_profile == "KPI Formula Finder":
-        kwargs = {
-            "query": query
-        }
         agent = KPIFormulaFinderAgent()
+    elif chat_profile == "KPI Simple Extraction":
+        agent = KPISimpleExtractionAgent(report, top_k=50)
 
 
-    message = agent.complete(**kwargs)
+    message = agent.complete(query)
+    
     response = cl.Message(content=message)
     
     return response
