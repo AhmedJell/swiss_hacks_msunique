@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express as px
 from src.streamlit.pages.helpers.helpers import menu
 from src.ingestion.report import Report
+from datetime import datetime
 
 st.set_page_config(
     page_title="Metrics",
@@ -14,22 +15,44 @@ st.set_page_config(
 
 menu()
 
+def get_additional_data(ticker: str):
+    FMP_API_KEY="GhbGMbjG4ZtktR7ayXypbMZkKzHgQ910"
+    #!/usr/bin/env python
+    try:
+        # For Python 3.0 and later
+        from urllib.request import urlopen
+    except ImportError:
+        # Fall back to Python 2's urllib2
+        from urllib2 import urlopen
+
+    import certifi
+    import json
+
+    def get_jsonparsed_data(url):
+        response = urlopen(url, cafile=certifi.where())
+        data = response.read().decode("utf-8")
+        return json.loads(data)
+
+    url = (f"https://financialmodelingprep.com/api/v3/key-metrics/{ticker}?period=annual&apikey={FMP_API_KEY}")
+    st.write(get_jsonparsed_data(url))
+
+
 def run_report(report: Report, container):
     container.title(f"Metrics Dashboard of **{report.company_name}** in {report.year}")
 
     col1, col2 = container.columns(2)
 
     col1.header("Quick Company Overview")
-    col1.markdown(
+    col1.write(
         """
         ABB, headquartered in Zurich, Switzerland, was founded in 1988 through the merger of ASEA (1883) and BBC (1891). It operates globally with a presence in over 100 countries, primarily across Europe, the Americas, Asia, the Middle East, and Africa. ABB specializes in electrification, motion, process automation, and robotics & discrete automation sectors. The company’s strategy focuses on leveraging its technological leadership to drive sustainability and resource efficiency. ABB is listed on the SIX Swiss Exchange and Nasdaq Stockholm.
         """
     )
 
     col2.header("Highlights of the year")
-    col2.markdown(
+    col2.write(
         """
-        In 2023, ABB invested \$170 million in the US and \$280 million in Sweden to expand capacity, unveiled the ABB Dynafin™ for ships, delisted from the NYSE, updated its Code of Conduct, and completed the $505 million sale of its Power Conversion division.
+        In 2023, ABB invested $170 million in the US and $280 million in Sweden to expand capacity, unveiled the ABB Dynafin™ for ships, delisted from the NYSE, updated its Code of Conduct, and completed the $505 million sale of its Power Conversion division.
         """
     )
 
@@ -52,12 +75,43 @@ def run_report(report: Report, container):
         col_mt3.metric("EBITDA", "$5'603m", "43.5%")
         col_mt4.metric("EBIT", "$4,871m", "46.0%")
 
-    container.markdown("The company shows strong financial performance with a total revenue of \$32.2m (up 9.5%) and a net income of \$3.7m (up 51.3%). Total assets are \$40.2m (up 5.7%) and total equity is \$13.4m (up 3.6%).")
+    container.write("The company shows strong financial performance with a total revenue of $32.2m (up 9.5%) and a net income of $3.7m (up 51.3%). Total assets are $40.2m (up 5.7%) and total equity is $13.4m (up 3.6%).")
 
     col_c1, col_c2 = container.columns(spec=[0.4, 0.6])
     col_c1.header("Stock ticker from past 12 months")
-    ticker = yf.Ticker("ABBN.SW")
+    ticker = yf.Ticker("UBSG")
     hist = ticker.history(period="1y")
+
+    get_additional_data("UBS")
+
+    # Transforming the data
+    formatted_data = []
+    for item in ticker.news:
+        formatted_item = {
+            'Title': item['title'],
+            'Publisher': item['publisher'],
+            'Type': item['type'],
+            'Date': datetime.fromtimestamp(item['providerPublishTime']).strftime('%d/%m/%Y'),
+            'Link': item['link']
+        }
+        formatted_data.append(formatted_item)
+
+    # Creating DataFrame
+    df = pd.DataFrame(formatted_data)
+
+    # Streamlit display
+    container.title('News Articles')
+    container.dataframe(df,
+        column_config={
+            "Link": st.column_config.LinkColumn(
+                "Links",
+                help="The top trending Streamlit apps",
+                validate="^https://[a-z]+\.streamlit\.app$",
+                max_chars=100,
+                display_text="https://(.*?)\.streamlit\.app"
+            )},
+        hide_index=True,
+    )
 
     col_c1.line_chart(hist["Close"])
 
