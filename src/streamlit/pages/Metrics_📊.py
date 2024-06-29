@@ -3,7 +3,7 @@ import yfinance as yf
 import pandas as pd
 import plotly.express as px
 from streamlit.components.v1 import html
-from src.streamlit.helpers.helpers import menu
+from src.streamlit.pages.helpers.helpers import menu
 
 st.set_page_config(
     page_title="Metrics",

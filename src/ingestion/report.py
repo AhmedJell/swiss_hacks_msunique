@@ -211,6 +211,8 @@ class Report:
         df_kpis.drop_duplicates(subset=["question"], keep="first", inplace=True)
         df_kpis.to_json(save_path, orient="records")
 
+        self.kpis = df_kpis
+        
         return df_kpis
     
     def compute_extra_kpis(self):
