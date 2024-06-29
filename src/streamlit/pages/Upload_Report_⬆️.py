@@ -38,6 +38,7 @@ if len(uploaded_files) > 0:
             with open(temp_file_path, "wb") as f:
                 f.write(file.getvalue())
             report = Report.from_json(temp_file_path)
+            report.get_kpis()
             os.remove(temp_file_path)
             st.session_state.processed.append(report)
             menu_metrics()
