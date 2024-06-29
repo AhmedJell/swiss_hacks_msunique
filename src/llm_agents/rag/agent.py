@@ -23,8 +23,8 @@ class RAGAgent(AgentTemplate):
             sources += f"<source{i+1}>{chunk.page_content}<source{i+1}>\n"
         return sources
 
-    def _get_prompt(self, question, chunks: list[Document]):
-        formatted_sources = self.format_sources(chunks)
+    def _get_prompt(self, question, sources: list[Document]):
+        formatted_sources = self.format_sources(sources)
         return [
             {"role": "system", "content": self.system},
             {

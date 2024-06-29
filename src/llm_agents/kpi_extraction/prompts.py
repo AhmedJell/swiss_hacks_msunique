@@ -31,5 +31,5 @@ KPI_EXTRACTOR_TRIGGER_PROMPT = """Extract the requested KPI and provide the nece
 Query:
 {query}
 
-Context:
-{context}"""
+Sources:
+{sources}"""
