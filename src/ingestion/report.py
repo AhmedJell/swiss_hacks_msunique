@@ -1,5 +1,6 @@
 import json
 import os
+import pickle
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -30,6 +31,7 @@ markdown_patterns = {
 
 compiled_patterns = {re.compile(f"^{k} (.+)"): v for k, v in markdown_patterns.items()}
 
+vectorstore_path = Path("data/vectorstores")
 
 @dataclass
 class Report:
@@ -50,7 +52,6 @@ class Report:
         print("Parsing texts for ", company_name, " ", year, " ...")
         texts, metadatas = cls._get_texts(json_path)
 
-        print("Embedding texts for ", company_name, " ", year, " ...")
         embedding_model = AzureOpenAIEmbeddings(
             model=os.getenv("EMBEDDING-MODEL"),
             api_key=os.getenv("API-KEY"),
@@ -58,13 +59,31 @@ class Report:
             azure_endpoint=os.getenv("AZURE-ENDPOINT"),
         )
 
-        embeddings = embedding_model.embed_documents(texts)
+        save_dir = vectorstore_path / company_name / year
+        if not save_dir.exists():
+            save_dir.mkdir(parents=True)
+            print("Embedding texts for ", company_name, " ", year, " ...")
+            embeddings = embedding_model.embed_documents(texts)
 
-        vectorstore = FAISS.from_embeddings(
-            text_embeddings=list(zip(texts, embeddings)),
-            metadatas=metadatas,
-            embedding=embedding_model,
-        )
+            # Save the embeddings with pickle
+            with open(save_dir / "embeddings.pkl", "wb") as file:
+                pickle.dump(embeddings, file)
+
+            vectorstore = FAISS.from_embeddings(
+                text_embeddings=list(zip(texts, embeddings)),
+                metadatas=metadatas,
+                embedding=embedding_model,
+            )
+
+            vectorstore.save_local(save_dir)
+
+        else:
+            print("Loading embeddings for ", company_name, " ", year, " ...")
+            vectorstore = FAISS.load_local(save_dir, embeddings=embedding_model, 
+                                           allow_dangerous_deserialization=True)
+            with open(save_dir / "embeddings.pkl", "rb") as file:
+                embeddings = pickle.load(file)
+
 
         return cls(
             company_name=company_name,

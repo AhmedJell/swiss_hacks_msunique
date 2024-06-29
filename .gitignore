@@ -164,3 +164,5 @@ cython_debug/
 # Chainlit App
 .chainlit
 config.json
+
+vectorstores/
