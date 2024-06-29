@@ -43,14 +43,30 @@ async def start():
                 min=0,
                 max=2,
                 step=0.1,
-            )
+            ),
+            Select(
+                id="Company",
+                label="Company",
+                values=["ABB", "IBM", "PostFinance", "Raiffeisen", "Siemens"],
+                initial_index=0,
+            ),
+            Select(
+                id="Year",
+                label="Year of the annual report",
+                values=["2021", "2022", "2023"],
+                initial_index=0,
+            ),
+
         ]
     ).send()
 
+    cl.user_session.set("company", settings["Company"])
+    cl.user_session.set("year", settings["Year"])
 
 @cl.on_settings_update
 async def setup_agent(settings):
-    print("on_settings_update", settings)
+    cl.user_session.set("company", settings["Company"])
+    cl.user_session.set("year", settings["Year"])
 
 # Load the environment variables
 load_dotenv()
@@ -82,19 +98,20 @@ def load_report(path: Path) -> cl.Message:
 
 @cl.step(show_input=True, type="llm", disable_feedback=False)
 def get_report(message):
-    report = load_report(Path("../../msunique/Data/ABB/2023.json"))
+    report_file = Path(f"../../data/{cl.user_session.get("company")}_{cl.user_session.get("year")}.json")
+    report = load_report(report_file)
     chat_profile = cl.user_session.get("chat_profile")
     documents = report.vectorstore.similarity_search(message.content, k=20)
     if chat_profile == "KPI Extractor":
         agent = KPIExtractionAgent()
     elif chat_profile == "Simple Chatbot":
         agent = RAGAgent()
-    message = agent.complete(query=message.content, chunks=documents)
+    message = agent.complete(query=message.content, sources=documents)
     response = cl.Message(content=message)
     
     return response
 
 @cl.on_message
 async def on_message(message: cl.Message):
-    message = await get_report(message)
+    message = get_report(message)
     await message.send()
