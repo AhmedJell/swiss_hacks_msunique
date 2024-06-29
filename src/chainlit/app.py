@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 from src.ingestion.report import Report
 from src.llm_agents.kpi_extraction.agent import KPIExtractionAgent
+from src.llm_agents.rag.agent import RAGAgent
 from pathlib import Path
 from chainlit.input_widget import Select, Switch, Slider
 from langchain.docstore.document import Document 
@@ -86,13 +87,13 @@ def get_report(message):
     if chat_profile == "KPI Extractor":
         agent = KPIExtractionAgent()
     elif chat_profile == "Simple Chatbot":
-        pass
+        agent = RAGAgent()
     message = agent.complete(query=message.content, chunks=documents)
     response = cl.Message(content=message)
     
     return response
 
-@cl.on_message()
+@cl.on_message
 async def on_message(message: cl.Message):
     chat_profile = cl.user_session.get("chat_profile")
     message = await get_report(message)

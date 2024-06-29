@@ -11,7 +11,7 @@ Here is an example on how to reference sources (referenced facts must STRICTLY m
 - Some information retrieved from source N°X.[sourceX]
 - Some information retrieved from source N°Y and some information retrieved from source N°Z.[sourceY][sourceZ]"""
 
-RAG_TRIGGER_PROMPT = """Extract the requested KPI and provide the necessary information according to the specified format.
+RAG_TRIGGER_PROMPT = """Answer the question from the user and provide the necessary information according to the specified format.
 
 question:
 ```
