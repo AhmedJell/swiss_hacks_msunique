@@ -25,8 +25,8 @@ class Report:
     @classmethod
     def from_json(cls, json_path):
         path = Path(json_path)
-        year = path.stem
-        company_name = path.parent.stem
+        filename = path.stem #File name needs to be in the format company_year.json
+        company_name, year = filename.split("_")
 
         print("Parsing texts for ", company_name, " ", year, " ...")
         texts, metadatas = cls._get_texts(json_path)
