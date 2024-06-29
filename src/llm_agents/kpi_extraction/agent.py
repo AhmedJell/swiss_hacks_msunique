@@ -20,12 +20,12 @@ class KPIExtractionAgent(AgentTemplate):
     def format_chunks(self, chunks: list[Document]):
         return "\n".join([chunk.page_content for chunk in chunks])
 
-    def _get_prompt(self, query, chunks: list[Document]):
-        formatted_chunks = self.format_chunks(chunks)
+    def _get_prompt(self, query, sources: list[Document]):
+        formatted_chunks = self.format_chunks(sources)
         return [
             {"role": "system", "content": self.system},
             {
                 "role": "user",
-                "content": self.trigger.format(query=query, context=formatted_chunks),
+                "content": self.trigger.format(query=query, sources=formatted_chunks),
             },
         ]

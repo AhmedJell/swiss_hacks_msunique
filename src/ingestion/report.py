@@ -1,5 +1,7 @@
 import json
 import os
+import re
+from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -7,9 +9,26 @@ from dotenv import load_dotenv
 from langchain.docstore.document import Document
 from langchain_community.embeddings import AzureOpenAIEmbeddings
 from langchain_community.vectorstores.faiss import FAISS
-from langchain_text_splitters import MarkdownHeaderTextSplitter
 
 load_dotenv()
+
+page_number_pattern = r'<!-- PageNumber="(\d+)" -->'
+def remove_page_number(text):
+    return re.sub(page_number_pattern, '', text)
+
+page_header_pattern = r'<!-- PageHeader="[^"]*" -->'
+def remove_page_header(text):
+    """Removes the page header pattern from the given text."""
+    return re.sub(page_header_pattern, '', text)
+
+
+markdown_patterns = {
+    "#": "Header 1",
+    "##": "Header 2",
+    "###": "Header 3",
+}
+
+compiled_patterns = {re.compile(f"^{k} (.+)"): v for k, v in markdown_patterns.items()}
 
 
 @dataclass
@@ -60,13 +79,12 @@ class Report:
     def _get_texts(cls, json_path):
         json_data = cls._load_json(json_path)
         content = cls._parse_content(json_data)
-
         texts = []
         metadatas = []
 
-        for doc in content:
-            texts.append(doc.page_content)
-            metadatas.append(doc.metadata)
+        for elem in content:
+            texts.append(elem['text'])
+            metadatas.append(elem['metadata'])
 
         return texts, metadatas
 
@@ -76,18 +94,33 @@ class Report:
             return json.load(file)
 
     @classmethod
-    def _parse_content(cls, json_data) -> list[Document]:
-        content = json_data["analyzeResult"]["content"]
-        headers_to_split_on = [
-            ("#", "Header 1"),
-            ("##", "Header 2"),
-            ("###", "Header 3"),
-        ]
-        markdown = MarkdownHeaderTextSplitter(
-            headers_to_split_on=headers_to_split_on, strip_headers=False
-        ).split_text(content)
+    def _parse_content(cls, json_data) -> list[dict]:
+        content = []
+        for page in json_data["analyzeResult"]['pages']:
+            
+            headers = defaultdict(list)
+            lines = []
+            for line in page["lines"]:
+                line_content = line['content']
+                for pattern, header in compiled_patterns.items():
+                    match = pattern.match(line_content)
+                    if match:
+                        headers[header].append(match.group(1))
+                lines.append(line_content)
 
-        return markdown
+            text = "\n".join(lines)
+            text = remove_page_number(text)
+            text = remove_page_header(text)
+        
+            content.append({
+                "metadata": {
+                    "page_number": page["pageNumber"],
+                    "markdown_header": dict(headers)
+                },
+                "text": text
+            })
+
+        return content
 
 
 if __name__ == "__main__":
