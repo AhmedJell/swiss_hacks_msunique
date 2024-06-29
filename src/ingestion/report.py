@@ -11,6 +11,7 @@ from langchain.docstore.document import Document
 from langchain_community.embeddings import AzureOpenAIEmbeddings
 from langchain_community.vectorstores.faiss import FAISS
 from langchain_community.vectorstores.utils import DistanceStrategy
+from .embedding import CombinedEmbedding
 
 load_dotenv()
 
@@ -59,16 +60,11 @@ class Report:
             api_version=os.getenv("API-VERSION"),
             azure_endpoint=os.getenv("AZURE-ENDPOINT"),
         )
-
         save_dir = vectorstore_path / company_name / year
         if not save_dir.exists():
             save_dir.mkdir(parents=True)
             print("Embedding texts for ", company_name, " ", year, " ...")
             embeddings = embedding_model.embed_documents(texts)
-
-            # Save the embeddings with pickle
-            with open(save_dir / "embeddings.pkl", "wb") as file:
-                pickle.dump(embeddings, file)
 
             vectorstore = FAISS.from_embeddings(
                 text_embeddings=list(zip(texts, embeddings)),
@@ -77,15 +73,18 @@ class Report:
                 distance_strategy=DistanceStrategy.COSINE,
             )
 
-            vectorstore.save_local(save_dir)
+            # Save the embeddings with pickle
+            with open(save_dir / "embeddings.pkl", "wb") as file:
+                pickle.dump(embeddings, file)
+
+            vectorstore.save_local(save_dir / "vectorstore")
 
         else:
             print("Loading embeddings for ", company_name, " ", year, " ...")
-            vectorstore = FAISS.load_local(save_dir, embeddings=embedding_model, 
-                                           allow_dangerous_deserialization=True,
-                                            distance_strategy=DistanceStrategy.COSINE,)
             with open(save_dir / "embeddings.pkl", "rb") as file:
                 embeddings = pickle.load(file)
+
+            vectorstore = FAISS.load_local(save_dir / "vectorstore", embeddings=embedding_model, allow_dangerous_deserialization=True)
 
 
         return cls(

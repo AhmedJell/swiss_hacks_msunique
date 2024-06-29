@@ -19,11 +19,12 @@ class Prompt(BaseModel):
 
 
 azure_client = AzureOpenAI(
-    api_key=os.getenv("API-KEY"),
-    api_version=os.getenv("API-VERSION"),
-    azure_endpoint=os.getenv("AZURE-ENDPOINT"),
+    api_key="a096090373464949980ad13a8291afa3",
+    api_version="2024-02-01",
+    azure_endpoint="https://regioneastus2.openai.azure.com/",
 )
 
+MODEL_NAME = "gpt-4o-East-US2"
 
 class AgentTemplate(ABC):
     def __init__(self, report: Report = None):
@@ -68,6 +69,18 @@ class AgentTemplate(ABC):
         prompt = self._get_prompt(*args, **kwargs)
         resp = azure_client.chat.completions.create(
             messages=prompt,
-            model=os.getenv("COMPLETION-MODEL")
+            model=MODEL_NAME
         )
         return resp.choices[0].message.content
+
+    def get_kpi_source_pages(self, response, sources):
+        source_page_numbers = []
+        for elem in response["KPI"]["sources"]:
+            source_num = eval(elem.replace("source", "")) - 1
+            source_page_numbers.append(
+                sources[source_num].metadata["page_number"]
+            )
+
+        response["KPI"]["sources"] = source_page_numbers
+
+        return response

@@ -5,6 +5,7 @@ import os
 from src.ingestion.report import Report
 from src.llm_agents.kpi_extraction.agent import KPIExtractionAgent
 from src.llm_agents.kpi_formula_finder.agent import KPIFormulaFinderAgent
+from src.llm_agents.kpi_simple_extraction.agent import KPISimpleExtractionAgent
 from src.llm_agents.rag.agent import RAGAgent
 from pathlib import Path
 from chainlit.input_widget import Select, Switch, Slider
@@ -28,6 +29,11 @@ async def chat_profile():
             name="KPI Formula Finder",
             markdown_description="The underlying LLM model is **GPT-4o.",
             icon="https://picsum.photos/300",
+        ),
+        cl.ChatProfile(
+            name="KPI Simple Extraction",
+            markdown_description="The underlying LLM model is **GPT-4o.",
+            icon="https://picsum.photos/350",
         ),
     ]
 
@@ -114,6 +120,8 @@ def get_report(message):
         agent = RAGAgent(report)
     elif chat_profile == "KPI Formula Finder":
         agent = KPIFormulaFinderAgent()
+    elif chat_profile == "KPI Simple Extraction":
+        agent = KPISimpleExtractionAgent(report, top_k=50)
 
     message = agent.complete(query)
     

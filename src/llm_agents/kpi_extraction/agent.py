@@ -3,7 +3,7 @@ import os
 from langchain.docstore.document import Document
 
 from src.ingestion.report import Report
-from src.llm_agents.base import AgentTemplate
+from src.llm_agents.base import MODEL_NAME, AgentTemplate
 from src.llm_agents.kpi_formula_finder.agent import KPIFormulaFinderAgent
 
 from .prompts import KPI_EXTRACTOR_SYSTEM_PROMPT, KPI_EXTRACTOR_TRIGGER_PROMPT
@@ -41,11 +41,10 @@ class KPIExtractionAgent(AgentTemplate):
         prompt = self._get_prompt(query, sources)
 
         resp = self.azure_client.chat.completions.create(
-            messages=prompt, model=os.getenv("COMPLETION-MODEL"), temperature=0
+            messages=prompt, model=MODEL_NAME, temperature=0
         )
 
         response = self.parse_json(resp.choices[0].message.content)
-
 
         try:
             found = response["KPI"]["result"]["found"]
@@ -64,7 +63,14 @@ class KPIExtractionAgent(AgentTemplate):
                         )
 
                 sub_sources.sort(key=lambda x: x[1], reverse=True)
-                sub_sources = [elem[0] for elem in sub_sources]
+                sub_sources: list[Document] = [elem[0] for elem in sub_sources]
+
+                filtered_sources = []
+                for source in sub_sources:
+                    if source.page_content not in [
+                        elem.page_content for elem in filtered_sources
+                    ]:
+                        filtered_sources.append(source)
 
                 augmented_query = f"""You need to anser the following query:
                 
@@ -76,16 +82,18 @@ class KPIExtractionAgent(AgentTemplate):
                 ```
                 {'\n'.join(queries)}.
                 ```"""
-                prompt = self._get_prompt(augmented_query, sub_sources)
+                prompt = self._get_prompt(augmented_query, filtered_sources)
                 resp = self.azure_client.chat.completions.create(
-                    messages=prompt, model=os.getenv("COMPLETION-MODEL"), temperature=0
+                    messages=prompt, model=MODEL_NAME, temperature=0
                 )
                 response = self.parse_json(resp.choices[0].message.content)
 
                 source_page_numbers = []
                 for elem in response["KPI"]["source"]:
                     source_num = eval(elem.replace("source", "")) - 1
-                    source_page_numbers.append(sub_sources[source_num].metadata["page_number"])
+                    source_page_numbers.append(
+                        sub_sources[source_num].metadata["page_number"]
+                    )
 
                 response["KPI"]["source"] = source_page_numbers
 
@@ -97,6 +105,5 @@ class KPIExtractionAgent(AgentTemplate):
                 source_page_numbers.append(sources[source_num].metadata["page_number"])
 
             response["KPI"]["source"] = source_page_numbers
-
 
         return response
