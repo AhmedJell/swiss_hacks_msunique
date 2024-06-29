@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 from src.ingestion.report import Report
 from src.llm_agents.kpi_extraction.agent import KPIExtractionAgent
+from src.llm_agents.kpi_formula_finder.agent import KPIFormulaFinderAgent
 from src.llm_agents.rag.agent import RAGAgent
 from pathlib import Path
 from chainlit.input_widget import Select, Switch, Slider
@@ -22,6 +23,11 @@ async def chat_profile():
             name="Simple Chatbot",
             markdown_description="Classic RAG on the documents",
             icon="https://picsum.photos/250",
+        ),
+        cl.ChatProfile(
+            name="KPI Formula Finder",
+            markdown_description="The underlying LLM model is **GPT-4o.",
+            icon="https://picsum.photos/300",
         ),
     ]
 
@@ -101,12 +107,29 @@ def get_report(message):
     report_file = Path(f"../../data/{cl.user_session.get("company")}_{cl.user_session.get("year")}.json")
     report = load_report(report_file)
     chat_profile = cl.user_session.get("chat_profile")
-    documents = report.vectorstore.similarity_search(message.content, k=20)
+    query = message.content
     if chat_profile == "KPI Extractor":
+        documents = report.vectorstore.similarity_search(message.content, k=20)
         agent = KPIExtractionAgent()
+        kwargs = {
+            "sources": documents,
+            "query": query
+        }
     elif chat_profile == "Simple Chatbot":
+        documents = report.vectorstore.similarity_search(message.content, k=20)
+        kwargs = {
+            "sources": documents,
+            "query": query
+        }
         agent = RAGAgent()
-    message = agent.complete(query=message.content, sources=documents)
+    elif chat_profile == "KPI Formula Finder":
+        kwargs = {
+            "query": query
+        }
+        agent = KPIFormulaFinderAgent()
+
+
+    message = agent.complete(**kwargs)
     response = cl.Message(content=message)
     
     return response

@@ -3,27 +3,36 @@ If the KPI is not explicitly mentioned in the context but can be calculated with
 
 ```
 {
-  "KPIs": [
-    {
-      "acronym": "Name of the KPI",
-      "full_name": "Full name of the KPI",
-      "Value": "Value of the KPI",
-      "Source": "ID of the source where the information has been found",
-      "Related Values": {
-        "list_of_related_metrics": [
+  "KPI": {
+    "acronym": "Name of the KPI",
+    "full_name": "Full name of the KPI",
+    "description": "Description of the KPI",
+    "result": {
+      "found": "True/False whether the KPI was found in the context",
+      "computed": "True/False whether the KPI was computed",
+      "formula": {
+        "variables": [
           {
-            "metric1": "value",
-            "description": "Description of the metric"
+            "variable_name": "name of the variable",
+            "value": "value of the variable that leads to the KPI computation"
           },
           ...
         ],
-        "used_formula": "Formula used to compute the KPI, if applicable"
-      }
-    }
-  ]
+        "computation_formula": "Formula used to compute the KPI if applicable"
+      },
+    },
+    "value": "Value of the KPI if explicitly mentioned",
+    "source": [
+      "source1",
+      "source2",
+      ...
+    ]
+  }
 }
 ```
 
+You should provide the requested information in the specified format to fulfill the user query. 
+If the KPI is not found in the context, you should indicate this in the output.
 """
 
 
@@ -33,4 +42,7 @@ Query:
 {query}
 
 Sources:
-{sources}"""
+{sources}
+
+Json Output:
+"""
