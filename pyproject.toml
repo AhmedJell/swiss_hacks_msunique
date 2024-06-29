@@ -4,6 +4,9 @@ version = "0.1.0"
 description = ""
 authors = []
 readme = "README.md"
+packages = [
+    { include = "src", from = "." }
+]
 
 [tool.poetry.dependencies]
 python = "^3.12"
@@ -21,6 +24,8 @@ faiss-cpu = "^1.8.0.post1"
 chainlit = "^1.1.305"
 streamlit = "^1.36.0"
 scikit-learn = "^1.5.0"
+yfinance = "^0.2.40"
+plotly = "^5.22.0"
 
 
 [tool.poetry.group.dev.dependencies]
