@@ -106,6 +106,7 @@ settings = {
 @cl.cache
 def load_report(path: Path) -> cl.Message:
     report = Report.from_json(path)
+    report.get_kpis()
     return report
 
 @cl.step(show_input=True, type="llm", disable_feedback=False)
@@ -122,6 +123,7 @@ def get_report(message):
         agent = KPIFormulaFinderAgent()
     elif chat_profile == "KPI Simple Extraction":
         agent = KPISimpleExtractionAgent(report, top_k=50)
+
 
     message = agent.complete(query)
     

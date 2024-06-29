@@ -13,11 +13,15 @@ Your answer needs to be factual. The output must be in JSON format as follows:
     "full_name": "Full name of the KPI",
     "description": "Description of the KPI",
     "found": "True/False whether the KPI was found in the sources",
-    "value": "Value of the KPI if explicitly mentioned",
-    "sources": [
-      "source1",
-      "source2",
-      ...
+    "values": [  # List of values for the KPI from different sources
+      {
+        "value": "Value of the KPI if explicitly mentioned",
+        "source": "source1"
+      },
+      {
+        "value": "Value of the KPI if explicitly mentioned",
+        "source": "source2"
+      }
     ]
   }
 }

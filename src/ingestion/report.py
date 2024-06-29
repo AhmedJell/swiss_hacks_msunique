@@ -5,24 +5,49 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
+from src.llm_agents.kpi_simple_extraction.agent import KPISimpleExtractionAgent
 
+import pandas as pd
 from dotenv import load_dotenv
 from langchain.docstore.document import Document
 from langchain_community.embeddings import AzureOpenAIEmbeddings
 from langchain_community.vectorstores.faiss import FAISS
 from langchain_community.vectorstores.utils import DistanceStrategy
-from .embedding import CombinedEmbedding
+from tqdm import tqdm
+
 
 load_dotenv()
 
+kpi_questions = [
+    "What are the company's total assets?",
+    "What are the company's current assets?",
+    "What is the cash and cash equivalents of the company?",
+    "What are the inventories of the company?",
+    "What are the company's current liabilities?",
+    "What is the company's total equity?",
+    "What is the company's total revenue?",
+    "What is the company's gross profit?",
+    "What is the company's EBITDA?",
+    "What is the company's EBIT?",
+    "What is the company's net income?",
+    "What are the company's cash flow from operations?",
+    "What are the company's cash flow from investing?",
+    "What are the company's cash flow from financing?",
+]
+
 page_number_pattern = r'<!-- PageNumber="(\d+)" -->'
+
+
 def remove_page_number(text):
-    return re.sub(page_number_pattern, '', text)
+    return re.sub(page_number_pattern, "", text)
+
 
 page_header_pattern = r'<!-- PageHeader="[^"]*" -->'
+
+
 def remove_page_header(text):
     """Removes the page header pattern from the given text."""
-    return re.sub(page_header_pattern, '', text)
+    return re.sub(page_header_pattern, "", text)
 
 
 markdown_patterns = {
@@ -35,6 +60,7 @@ compiled_patterns = {re.compile(f"^{k} (.+)"): v for k, v in markdown_patterns.i
 
 vectorstore_path = Path(__file__).parent.parent.parent / "data" / "vectorstore"
 
+
 @dataclass
 class Report:
     company_name: str
@@ -43,12 +69,12 @@ class Report:
     embeddings: list[list[float]]
     metadatas: list[dict]
     vectorstore: FAISS
-    kpis: list[dict] = field(default_factory=list)
+    kpis: pd.DataFrame = field(default_factory=pd.DataFrame)
 
     @classmethod
     def from_json(cls, json_path):
         path = Path(json_path)
-        filename = path.stem #File name needs to be in the format company_year.json
+        filename = path.stem  # File name needs to be in the format company_year.json
         company_name, year = filename.split("_")
 
         print("Parsing texts for ", company_name, " ", year, " ...")
@@ -84,8 +110,11 @@ class Report:
             with open(save_dir / "embeddings.pkl", "rb") as file:
                 embeddings = pickle.load(file)
 
-            vectorstore = FAISS.load_local(save_dir / "vectorstore", embeddings=embedding_model, allow_dangerous_deserialization=True)
-
+            vectorstore = FAISS.load_local(
+                save_dir / "vectorstore",
+                embeddings=embedding_model,
+                allow_dangerous_deserialization=True,
+            )
 
         return cls(
             company_name=company_name,
@@ -104,8 +133,8 @@ class Report:
         metadatas = []
 
         for elem in content:
-            texts.append(elem['text'])
-            metadatas.append(elem['metadata'])
+            texts.append(elem["text"])
+            metadatas.append(elem["metadata"])
 
         return texts, metadatas
 
@@ -117,12 +146,11 @@ class Report:
     @classmethod
     def _parse_content(cls, json_data) -> list[dict]:
         content = []
-        for page in json_data["analyzeResult"]['pages']:
-            
+        for page in json_data["analyzeResult"]["pages"]:
             headers = defaultdict(list)
             lines = []
             for line in page["lines"]:
-                line_content = line['content']
+                line_content = line["content"]
                 for pattern, header in compiled_patterns.items():
                     match = pattern.match(line_content)
                     if match:
@@ -132,16 +160,50 @@ class Report:
             text = "\n".join(lines)
             text = remove_page_number(text)
             text = remove_page_header(text)
-        
-            content.append({
-                "metadata": {
-                    "page_number": page["pageNumber"],
-                    "markdown_header": dict(headers)
-                },
-                "text": text
-            })
+
+            content.append(
+                {
+                    "metadata": {
+                        "page_number": page["pageNumber"],
+                        "markdown_header": dict(headers),
+                    },
+                    "text": text,
+                }
+            )
 
         return content
+
+    def get_kpis(self) -> pd.DataFrame:
+        agent = KPISimpleExtractionAgent(self)
+        output = {
+            "questions": [
+                {"question": question, "response": agent.complete(question)}
+                for question in tqdm(kpi_questions)
+            ]
+        }
+        df = pd.DataFrame(output["questions"])
+        df = df.assign(**df["response"].apply(pd.Series))
+        df = df.query("not response.isna()")
+        df = df.assign(**df["KPI"].apply(pd.Series))
+        df = df.explode("values")
+        df = df.query("not values.isna()")
+        df = df.assign(**df["values"].apply(pd.Series))
+        df.found = df.found.apply(lambda x: 1 if x == "True" or x else 0)
+        df.drop(columns=["response", "KPI", "values"], inplace=True)
+        df_kpis = df.sort_values("source").reset_index(drop=True)
+
+        save_path = (
+            Path(__file__).parent.parent.parent
+            / "data"
+            / "kpis"
+            / f"{self.company_name}_{self.year}.json"
+        )
+        if not save_path.parent.exists():
+            save_path.parent.mkdir(parents=True)
+
+        df_kpis.to_json(save_path, orient="records")
+
+        return df_kpis
 
 
 if __name__ == "__main__":

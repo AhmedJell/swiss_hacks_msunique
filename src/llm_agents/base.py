@@ -8,8 +8,6 @@ from langchain.docstore.document import Document
 from openai import AzureOpenAI
 from pydantic import BaseModel
 
-from src.ingestion.report import Report
-
 load_dotenv()
 
 
@@ -27,7 +25,7 @@ azure_client = AzureOpenAI(
 MODEL_NAME = "gpt-4o-East-US2"
 
 class AgentTemplate(ABC):
-    def __init__(self, report: Report = None):
+    def __init__(self, report = None):
         self.report = report
 
     @property
@@ -74,13 +72,14 @@ class AgentTemplate(ABC):
         return resp.choices[0].message.content
 
     def get_kpi_source_pages(self, response, sources):
-        source_page_numbers = []
-        for elem in response["KPI"]["sources"]:
-            source_num = eval(elem.replace("source", "")) - 1
-            source_page_numbers.append(
-                sources[source_num].metadata["page_number"]
+        values = []
+        for elem in response["KPI"]["values"]:
+            source_num = eval(elem['source'].replace("source", "")) - 1
+            elem['source'] = sources[source_num].metadata["page_number"]
+            values.append(
+                elem
             )
 
-        response["KPI"]["sources"] = source_page_numbers
+        response["KPI"]["values"] = values
 
         return response

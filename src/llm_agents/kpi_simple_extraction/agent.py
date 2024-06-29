@@ -1,6 +1,5 @@
 import os
 
-from src.ingestion.report import Report
 from src.llm_agents.base import MODEL_NAME, AgentTemplate
 
 from .prompts import (
@@ -10,7 +9,8 @@ from .prompts import (
 
 
 class KPISimpleExtractionAgent(AgentTemplate):
-    def __init__(self, report: Report, top_k: int = 20):
+
+    def __init__(self, report, top_k: int = 20):
         super().__init__(report)
         self.top_k = top_k
     @property
@@ -34,15 +34,20 @@ class KPISimpleExtractionAgent(AgentTemplate):
             },
         ]
     def complete(self, query):
-            sources = self.report.vectorstore.similarity_search(k=self.top_k, query=query)
-            prompt = self._get_prompt(query, sources)
+        sources = self.report.vectorstore.similarity_search(k=self.top_k, query=query)
+        prompt = self._get_prompt(query, sources)
 
-            resp = self.azure_client.chat.completions.create(
-                messages=prompt, model=MODEL_NAME, temperature=0
-            )
+        for _ in range(5):
+            try:
+                resp = self.azure_client.chat.completions.create(
+                    messages=prompt, model=MODEL_NAME, temperature=0
+                )
+                response = self.parse_json(resp.choices[0].message.content)
+                response = self.get_kpi_source_pages(response, sources)
+                return response
+            except Exception as e:
+                print(f"Error occurred: {e}")
+                continue
 
-            response = self.parse_json(resp.choices[0].message.content)
-            response = self.get_kpi_source_pages(response, sources)
-
-            return response
+        return None
 

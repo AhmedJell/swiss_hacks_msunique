@@ -2,7 +2,6 @@ import os
 
 from langchain.docstore.document import Document
 
-from src.ingestion.report import Report
 from src.llm_agents.base import MODEL_NAME, AgentTemplate
 from src.llm_agents.kpi_formula_finder.agent import KPIFormulaFinderAgent
 
@@ -10,6 +9,7 @@ from .prompts import KPI_EXTRACTOR_SYSTEM_PROMPT, KPI_EXTRACTOR_TRIGGER_PROMPT
 
 
 class KPIExtractionAgent(AgentTemplate):
+    from src.ingestion.report import Report
     def __init__(self, report: Report, top_k: int = 20):
         super().__init__(report)
         self.top_k = top_k
