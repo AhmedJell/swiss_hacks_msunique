@@ -53,7 +53,7 @@ async def start():
             Select(
                 id="Year",
                 label="Year of the annual report",
-                values=["2021", "2022", "2023"],
+                values=["2023", "2022", "2021"],
                 initial_index=0,
             ),
 
