@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from langchain.docstore.document import Document
 from langchain_community.embeddings import AzureOpenAIEmbeddings
 from langchain_community.vectorstores.faiss import FAISS
+from langchain_community.vectorstores.utils import DistanceStrategy
 
 load_dotenv()
 
@@ -73,6 +74,7 @@ class Report:
                 text_embeddings=list(zip(texts, embeddings)),
                 metadatas=metadatas,
                 embedding=embedding_model,
+                distance_strategy=DistanceStrategy.COSINE,
             )
 
             vectorstore.save_local(save_dir)
@@ -80,7 +82,8 @@ class Report:
         else:
             print("Loading embeddings for ", company_name, " ", year, " ...")
             vectorstore = FAISS.load_local(save_dir, embeddings=embedding_model, 
-                                           allow_dangerous_deserialization=True)
+                                           allow_dangerous_deserialization=True,
+                                            distance_strategy=DistanceStrategy.COSINE,)
             with open(save_dir / "embeddings.pkl", "rb") as file:
                 embeddings = pickle.load(file)
 

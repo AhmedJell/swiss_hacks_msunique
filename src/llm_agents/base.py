@@ -1,3 +1,4 @@
+import json
 import os
 from abc import ABC, abstractmethod
 from typing import Literal
@@ -6,6 +7,8 @@ from dotenv import load_dotenv
 from langchain.docstore.document import Document
 from openai import AzureOpenAI
 from pydantic import BaseModel
+
+from src.ingestion.report import Report
 
 load_dotenv()
 
@@ -23,6 +26,9 @@ azure_client = AzureOpenAI(
 
 
 class AgentTemplate(ABC):
+    def __init__(self, report: Report = None):
+        self.report = report
+
     @property
     @abstractmethod
     def system(self):
@@ -32,6 +38,10 @@ class AgentTemplate(ABC):
     @abstractmethod
     def trigger(self):
         raise NotImplementedError
+    
+    @property
+    def azure_client(self):
+        return azure_client
 
     @abstractmethod
     def _get_prompt(self, *args, **kwargs) -> list[dict]:
@@ -42,9 +52,9 @@ class AgentTemplate(ABC):
         try:
             start_index = json_output.index("{")
             end_index = json_output.rindex("}") + 1
-            parsed_json = eval(json_output[start_index:end_index])
-        except Exception:
-            print("Error: Json Parsing Error!")
+            parsed_json = json.loads(json_output[start_index:end_index])
+        except Exception as e:
+            print("Error: Json Parsing Error! ", e)
         
         return parsed_json
     
