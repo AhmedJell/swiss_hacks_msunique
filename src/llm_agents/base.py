@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Literal
 
 from dotenv import load_dotenv
+from langchain.docstore.document import Document
 from openai import AzureOpenAI
 from pydantic import BaseModel
 
@@ -46,7 +47,13 @@ class AgentTemplate(ABC):
             print("Error: Json Parsing Error!")
         
         return parsed_json
-
+    
+    def format_sources(self, chunks: list[Document]):
+        sources = ""
+        for i, chunk in enumerate(chunks):
+            sources += f"<source{i+1}>{chunk.page_content}<source{i+1}>\n"
+        return sources
+    
     def complete(self, *args, **kwargs):
         prompt = self._get_prompt(*args, **kwargs)
         resp = azure_client.chat.completions.create(

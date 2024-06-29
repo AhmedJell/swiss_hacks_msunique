@@ -17,12 +17,6 @@ class RAGAgent(AgentTemplate):
         """Trigger Prompt needs to contain {query} and {context} placeholders."""
         return RAG_TRIGGER_PROMPT
 
-    def format_sources(self, chunks: list[Document]):
-        sources = ""
-        for i, chunk in enumerate(chunks):
-            sources += f"<source{i+1}>{chunk.page_content}<source{i+1}>\n"
-        return sources
-
     def _get_prompt(self, query, sources: list[Document]):
         formatted_sources = self.format_sources(sources)
         return [
