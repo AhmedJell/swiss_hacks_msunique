@@ -14,7 +14,9 @@ If the KPI is not explicitly mentioned in the context but can be calculated with
         "variables": [
           {
             "variable_name": "name of the variable",
-            "value": "value of the variable that leads to the KPI computation"
+            "value": "value of the variable that leads to the KPI computation",
+            "unit": "the unit of the variable",
+            "currency": "the currency of the variable",
           },
           ...
         ],
