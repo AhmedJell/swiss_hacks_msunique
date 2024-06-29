@@ -165,4 +165,7 @@ cython_debug/
 .chainlit
 config.json
 
-vectorstores/
+**/vectorstores/
+**/*.ipynb
+.DS_Store
+
