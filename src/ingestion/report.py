@@ -174,6 +174,19 @@ class Report:
         return content
 
     def get_kpis(self) -> pd.DataFrame:
+        save_path = (
+            Path(__file__).parent.parent.parent
+            / "data"
+            / "kpis"
+            / f"{self.company_name}_{self.year}.json"
+        )
+
+        if not save_path.parent.exists():
+            save_path.parent.mkdir(parents=True)
+
+        if save_path.exists():
+            return pd.read_json(save_path)
+
         agent = KPISimpleExtractionAgent(self)
         output = {
             "questions": [
@@ -192,18 +205,16 @@ class Report:
         df.drop(columns=["response", "KPI", "values"], inplace=True)
         df_kpis = df.sort_values("source").reset_index(drop=True)
 
-        save_path = (
-            Path(__file__).parent.parent.parent
-            / "data"
-            / "kpis"
-            / f"{self.company_name}_{self.year}.json"
-        )
         if not save_path.parent.exists():
             save_path.parent.mkdir(parents=True)
 
+        df_kpis.drop_duplicates(subset=["question"], keep="first", inplace=True)
         df_kpis.to_json(save_path, orient="records")
 
         return df_kpis
+    
+    def compute_extra_kpis(self):
+        pass
 
 
 if __name__ == "__main__":
