@@ -109,27 +109,14 @@ def get_report(message):
     chat_profile = cl.user_session.get("chat_profile")
     query = message.content
     if chat_profile == "KPI Extractor":
-        documents = report.vectorstore.similarity_search(message.content, k=20)
-        agent = KPIExtractionAgent()
-        kwargs = {
-            "sources": documents,
-            "query": query
-        }
+        agent = KPIExtractionAgent(report)
     elif chat_profile == "Simple Chatbot":
-        documents = report.vectorstore.similarity_search(message.content, k=20)
-        kwargs = {
-            "sources": documents,
-            "query": query
-        }
-        agent = RAGAgent()
+        agent = RAGAgent(report)
     elif chat_profile == "KPI Formula Finder":
-        kwargs = {
-            "query": query
-        }
         agent = KPIFormulaFinderAgent()
 
-
-    message = agent.complete(**kwargs)
+    message = agent.complete(query)
+    
     response = cl.Message(content=message)
     
     return response
