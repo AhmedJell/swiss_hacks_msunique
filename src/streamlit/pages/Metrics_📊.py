@@ -1,19 +1,57 @@
-import streamlit as st
-import yfinance as yf
-import pandas as pd
-import plotly.express as px
-from src.streamlit.pages.helpers.helpers import menu
-from src.ingestion.report import Report
 from datetime import datetime
 
+import pandas as pd
+import plotly.express as px
+import streamlit as st
+
+from src.ingestion.report import Report
+from src.llm_agents.rag.agent import RAGAgent
+from src.streamlit.pages.helpers.helpers import menu
+
 st.set_page_config(
-    page_title="Metrics",
+    page_title="Reports",
     page_icon=":bar_chart:",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 menu()
+
+def capitalize(s):
+    return ' '.join(word.capitalize() for word in s.split())
+
+def metric_data(df, metric):
+    df_tmp = df.query(f"question.str.contains('{metric}')")
+
+    if len(df_tmp) == 0:
+        return None
+    
+    value = df_tmp.value.values[0]
+    base = df_tmp.base.values[0]
+    unit = df_tmp.unit.values[0]
+
+    if base == "Million":
+        base = "m"
+    elif base == "Billion":
+        base = "b"
+    elif base == "Trillion":
+        base = "t"
+
+    if unit == "USD":
+        unit = "$"
+    elif unit == "EUR":
+        unit = "€"
+
+    formatted_value = "{:,}".format(int(value)).replace(",", "'")
+
+    if base == "m":
+        value = value * 1e6
+    elif base == "b":
+        value = value * 1e9
+
+
+    return f"{unit}{formatted_value}{base}", value, base, unit
+    
 
 def get_additional_data(ticker: str):
     FMP_API_KEY="GhbGMbjG4ZtktR7ayXypbMZkKzHgQ910"
@@ -25,8 +63,9 @@ def get_additional_data(ticker: str):
         # Fall back to Python 2's urllib2
         from urllib2 import urlopen
 
-    import certifi
     import json
+
+    import certifi
 
     def get_jsonparsed_data(url):
         response = urlopen(url, cafile=certifi.where())
@@ -39,113 +78,91 @@ def get_additional_data(ticker: str):
 
 def run_report(report: Report, container):
     container.title(f"Metrics Dashboard of **{report.company_name}** in {report.year}")
+    agent = RAGAgent(report)
+    df_report = report.kpis
+    for _, row in df_report.iterrows():
+        try:
+            row["value"] = float(row["value"])
+        except Exception as e:
+            print(e)
+
+    container.header("Key metrics")
+
+    metrics = {}
+    for metric in ["total revenue", "gross profit", "net income", "total assets", "total equity"]:
+        res = metric_data(df_report, metric)
+        if res is None:
+            continue
+        metrics[metric] = res
+
+    col_metrics = container.columns(len(metrics))
+    for i, (metric, value) in enumerate(metrics.items()):
+        col_metrics[i].metric(capitalize(metric), value[0])
+
+    computations = {}
+    try:
+        roe = round((metrics["net income"][1] / metrics["total equity"][1])*100, 1)
+        computations["ROE"] = f"{roe}%"
+    except Exception as e:
+        computations["ROE"] = "NA"
+
+    try:
+        roe = round((metrics["net income"][1] / metrics["total assets"][1])*100, 1)
+        computations["ROA"] = f"{roe}%"
+    except Exception as e:
+        computations["ROA"] = "NA"
+    
+    col_comp = container.columns(len(computations))
+    for i, (metric, value) in enumerate(computations.items()):
+        col_comp[i].metric(metric, value)
+  
+
+    # bar chart to show revenue by region and plot value on bar
+    df_regions = df_report.query("question.str.contains('total revenue in')")
+    if len(df_regions)>0:
+        st.header("Revenue by region")
+        _, col_region, _ = container.columns(spec=[0.2, 0.6, 0.2])
+
+        df_regions["Region"] = df_regions.question.str.replace("What is the company's total revenue in ", "")
+        df_regions.Region = df_regions.Region.str.replace("?", "")
+        
+        fig = px.pie(df_regions, values="value", names=df_regions.Region)\
+            .update_traces(textposition="inside", texttemplate="$%{value: 0.2s}m <br> %{percent}", hole=0.4)\
+            .update_layout(font_size=24, width=800, height=600, legend_title_font_size=30, legend_font_size=24)
+
+        col_region.plotly_chart(fig)
+
+
+    st.header("Sources of the KPIs")
+    _, col_sources, _ = container.columns(spec=[0.2, 0.6, 0.2])
+    df_sources = report.kpis.drop(
+        columns=["found", "description", "acronym", "question"]
+    ).rename(columns={"full_name": "KPI", "source": "Page", "value": "Value", "base": "Base", "unit": "Unit"})
+
+    df_sources.set_index("Page", inplace=True)
+
+    if "formula" in df_sources.columns:
+        df_sources.drop(columns=["formula"], inplace=True)
+
+    col_sources.dataframe(df_sources, use_container_width=True)
 
     col1, col2 = container.columns(2)
 
     col1.header("Quick Company Overview")
+    quick_overview = agent.complete(
+        "Give a company overview in a short paragraph"
+    )
     col1.write(
-        """
-        ABB, headquartered in Zurich, Switzerland, was founded in 1988 through the merger of ASEA (1883) and BBC (1891). It operates globally with a presence in over 100 countries, primarily across Europe, the Americas, Asia, the Middle East, and Africa. ABB specializes in electrification, motion, process automation, and robotics & discrete automation sectors. The company’s strategy focuses on leveraging its technological leadership to drive sustainability and resource efficiency. ABB is listed on the SIX Swiss Exchange and Nasdaq Stockholm.
-        """
+       quick_overview
     )
 
     col2.header("Highlights of the year")
+    highlight_of_the_year = agent.complete(
+        "In a short paragraph, summarize the highlights of the year of the company."
+    )
     col2.write(
-        """
-        In 2023, ABB invested $170 million in the US and $280 million in Sweden to expand capacity, unveiled the ABB Dynafin™ for ships, delisted from the NYSE, updated its Code of Conduct, and completed the $505 million sale of its Power Conversion division.
-        """
+        highlight_of_the_year
     )
-
-    container.dataframe(report.kpis)
-
-    container.header("Key metrics")
-    col_m1, col_m2, col_m3, col_m4, col_m5 = container.columns(5)
-    col_mt1, col_mt2, col_mt3, col_mt4, col_mt5 = container.columns(5)
-
-    col_m1.metric("Total Revenue", "$32.2m", "9.5%")
-    col_m2.metric("Gross Profits", "$11.m", "15.0%")
-    col_m3.metric("Net Income", "$3.7m", "51.3%")
-    col_m4.metric("Total Assets", "$40.2m", "5.7%")
-    col_m5.metric("Total equity", "$13.4m", "3.6%")
-
-    col_mt1.metric("ROE", "$32.2m", "9.5%")
-    col_mt2.metric("ROA", "$11.m", "15.0%")
-    if "If financial instution":
-
-        col_mt3.metric("EBITDA", "$5'603m", "43.5%")
-        col_mt4.metric("EBIT", "$4,871m", "46.0%")
-
-    container.write("The company shows strong financial performance with a total revenue of $32.2m (up 9.5%) and a net income of $3.7m (up 51.3%). Total assets are $40.2m (up 5.7%) and total equity is $13.4m (up 3.6%).")
-
-    col_c1, col_c2 = container.columns(spec=[0.4, 0.6])
-    col_c1.header("Stock ticker from past 12 months")
-    ticker = yf.Ticker("UBSG")
-    hist = ticker.history(period="1y")
-
-    get_additional_data("UBS")
-
-    # Transforming the data
-    formatted_data = []
-    for item in ticker.news:
-        formatted_item = {
-            'Title': item['title'],
-            'Publisher': item['publisher'],
-            'Type': item['type'],
-            'Date': datetime.fromtimestamp(item['providerPublishTime']).strftime('%d/%m/%Y'),
-            'Link': item['link']
-        }
-        formatted_data.append(formatted_item)
-
-    # Creating DataFrame
-    df = pd.DataFrame(formatted_data)
-
-    # Streamlit display
-    container.title('News Articles')
-    container.dataframe(df,
-        column_config={
-            "Link": st.column_config.LinkColumn(
-                "Links",
-                help="The top trending Streamlit apps",
-                validate="^https://[a-z]+\.streamlit\.app$",
-                max_chars=100,
-                display_text="https://(.*?)\.streamlit\.app"
-            )},
-        hide_index=True,
-    )
-
-    col_c1.line_chart(hist["Close"])
-
-    col_c2.header("Revenue by region")
-    revenue_by_region = {
-        "revenues_by_geography": [
-            {
-                "Region": "Europe",
-                "revenues": 11568,
-                "growth": "12%",
-                "comparable_growth": "14%"
-            },
-            {
-                "Region": "The Americas",
-                "revenues": 11090,
-                "growth": "16%",
-                "comparable_growth": "18%"
-            },
-            {
-                "Region": "Asia, Middle East, and Africa",
-                "revenues": 9577,
-                "growth": "0%",
-                "comparable_growth": "8%"
-            }
-        ],
-        "total_group_revenues": 32235,
-        "overall_growth": "9%",
-        "overall_comparable_growth": "14%"
-    }
-
-    # bar chart to show revenue by region and plot value on bar
-    df = pd.DataFrame(revenue_by_region["revenues_by_geography"]).set_index("Region")
-    fig = px.pie(df, values="revenues", names=df.index, title="Revenue by region").update_traces(textposition="inside", texttemplate="$%{value: 0.2s}m <br> %{percent}", hole=0.4)
-    col_c2.plotly_chart(fig)
 
 if "processed" in st.session_state:
     reports = st.session_state.processed
