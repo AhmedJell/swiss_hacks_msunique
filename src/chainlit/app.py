@@ -1,15 +1,17 @@
-from openai import AzureOpenAI
-import chainlit as cl
-from dotenv import load_dotenv
 import os
+from pathlib import Path
+
+import chainlit as cl
+from chainlit.input_widget import Select, Slider, Switch
+from dotenv import load_dotenv
+from openai import AzureOpenAI
+
 from src.ingestion.report import Report
 from src.llm_agents.kpi_extraction.agent import KPIExtractionAgent
 from src.llm_agents.kpi_formula_finder.agent import KPIFormulaFinderAgent
 from src.llm_agents.kpi_simple_extraction.agent import KPISimpleExtractionAgent
+from src.llm_agents.multi_doc_rag.agent import MultiRAGAgent
 from src.llm_agents.rag.agent import RAGAgent
-from pathlib import Path
-from chainlit.input_widget import Select, Switch, Slider
-from langchain.docstore.document import Document 
 
 
 @cl.set_chat_profiles
@@ -35,7 +37,16 @@ async def chat_profile():
             markdown_description="The underlying LLM model is **GPT-4o.",
             icon="https://picsum.photos/350",
         ),
+        cl.ChatProfile(
+            name="Multi-Document Chatbot - 2022 -> ABB + IBM",
+            markdown_description="Classic RAG on multiple documents",
+        ),
+        cl.ChatProfile(
+            name="Multi-Document Chatbot - ABB -> 2022 + 2023",
+            markdown_description="Classic RAG on multiple documents",
+        ),
     ]
+
 
 @cl.on_chat_start
 async def start():
@@ -68,17 +79,18 @@ async def start():
                 values=["2023", "2022", "2021"],
                 initial_index=0,
             ),
-
         ]
     ).send()
 
     cl.user_session.set("company", settings["Company"])
     cl.user_session.set("year", settings["Year"])
 
+
 @cl.on_settings_update
 async def setup_agent(settings):
     cl.user_session.set("company", settings["Company"])
     cl.user_session.set("year", settings["Year"])
+
 
 # Load the environment variables
 load_dotenv()
@@ -103,33 +115,51 @@ settings = {
     # ... more settings
 }
 
+
 @cl.cache
 def load_report(path: Path) -> cl.Message:
     report = Report.from_json(path)
     report.get_kpis()
     return report
 
+
 @cl.step(show_input=True, type="llm", disable_feedback=False)
 def get_report(message):
-    report_file = Path(f"../../data/{cl.user_session.get("company")}_{cl.user_session.get("year")}.json")
-    report = load_report(report_file)
     chat_profile = cl.user_session.get("chat_profile")
     query = message.content
-    if chat_profile == "KPI Extractor":
-        agent = KPIExtractionAgent(report)
-    elif chat_profile == "Simple Chatbot":
-        agent = RAGAgent(report)
-    elif chat_profile == "KPI Formula Finder":
-        agent = KPIFormulaFinderAgent()
-    elif chat_profile == "KPI Simple Extraction":
-        agent = KPISimpleExtractionAgent(report, top_k=50)
-
+    
+    if chat_profile == "Multi-Document Chatbot - ABB -> 2022 + 2023":
+        reports = [
+            load_report(Path("../../data/ABB_2022.json")),
+            load_report(Path("../../data/ABB_2023.json")),
+        ]
+        agent = MultiRAGAgent(reports)
+    elif chat_profile == "Multi-Document Chatbot - 2022 -> ABB + IBM":
+        reports = [
+            load_report(Path("../../data/ABB_2022.json")),
+            load_report(Path("../../data/IBM_2022.json")),
+        ]
+        agent = MultiRAGAgent(reports)
+    else:
+        report_file = Path(
+            f"../../data/{cl.user_session.get("company")}_{cl.user_session.get("year")}.json"
+        )
+        report = load_report(report_file)
+        if chat_profile == "KPI Extractor":
+            agent = KPIExtractionAgent(report)
+        elif chat_profile == "Simple Chatbot":
+            agent = RAGAgent(report)
+        elif chat_profile == "KPI Formula Finder":
+            agent = KPIFormulaFinderAgent()
+        elif chat_profile == "KPI Simple Extraction":
+            agent = KPISimpleExtractionAgent(report, top_k=50)
 
     message = agent.complete(query)
-    
+
     response = cl.Message(content=message)
-    
+
     return response
+
 
 @cl.on_message
 async def on_message(message: cl.Message):
